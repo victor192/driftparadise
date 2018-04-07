@@ -19,6 +19,8 @@ function Input.create(properties)
 	widget.regexp = exports.dpUtils:defaultValue(properties.regexp, false)
 	widget.textColor = Colors.color("white", 150)
 	widget.placeholderColor = Colors.color("white", 80)
+	widget.caret = {active = false, show = false, tick = getTickCount()}
+	local caretOffsetX = 1
 	local textOffsetX = 10
 	function widget:draw()
 		if activeInput == self then
@@ -39,6 +41,7 @@ function Input.create(properties)
 
 		-- Placeholder
 		local text = self.placeholder
+		local length = 0
 		Drawing.setColor(self.placeholderColor)
 		if utf8.len(self.text) > 0 then
 			text = self.text
@@ -49,26 +52,54 @@ function Input.create(properties)
 					text = text .. MASKED_CHAR
 				end
 			end
+			length = dxGetTextWidth(text, 1, self.font)
+		end
+		local textWidth = self.width - textOffsetX * 2
+		local textAlign = "left"
+		if length > textWidth then
+			textAlign = "right"
+			self.caret.x = self.x + self.width - textOffsetX + caretOffsetX
+		else
+			self.caret.x = self.x + textOffsetX + length + caretOffsetX
 		end
 		Drawing.text(
 			self.x + textOffsetX, 
 			self.y, 
-			self.width - textOffsetX * 2, 
+			textWidth, 
 			self.height, 
 			text, 
-			"left", 
+			textAlign, 
 			"center", 
 			true, 
 			false
 		)
+		
+		-- Placeholder caret
+		local currentTick = getTickCount()
+		if (currentTick - self.caret.tick) > 400 then
+			self.caret.tick = currentTick
+			if self.caret.show then
+				self.caret.show = false
+			else
+				self.caret.show = true
+			end
+		end
+		if self.caret.active and self.caret.show then
+			Drawing.setColor(self.textColor)
+			Drawing.rectangle(self.caret.x, self.y + 4, 1, self.height - 8)
+		end
 	end	
 	return widget
 end
 
 addEvent("_dpUI.clickInternal", false)
 addEventHandler("_dpUI.clickInternal", resourceRoot, function ()
+	if activeInput then
+		activeInput.caret.active = false
+	end
 	if Render.clickedWidget and Render.clickedWidget._type == "Input" then
  		activeInput = Render.clickedWidget
+		activeInput.caret.active = true
  	else
  		activeInput = nil
  	end

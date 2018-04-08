@@ -6,6 +6,11 @@ local screenWidth, screenHeight = exports.dpUI:getScreenSize()
 local realSceenWidth, realScreenHeight = guiGetScreenSize()
 local backgroundScale = realScreenHeight / 720
 local backgroundWidth, backgroundHeight = 1280 * backgroundScale, 720 * backgroundScale
+local backgroundTexturesFiles = {"1.jpg", "2.jpg", "3.jpg"}
+local backgroundTextures = {}
+local backgroundTextureIndex = 1
+local backgroundTransitionAnim = {start = false, progress = 0, lastTick = getTickCount()}
+local backgroundTransitionPeriod = 9000
 local animationProgress = 0
 local ANIMATION_SPEED = 0.01
 local loginPanel = {}
@@ -23,7 +28,22 @@ local languageButtonsList = {
 
 local function draw()
 	animationProgress = math.min(1, animationProgress + ANIMATION_SPEED)
-	dxDrawImage(0, 0, backgroundWidth, backgroundHeight, backgroundTexture, 0, 0, 0, tocolor(255, 255, 255, 255 * animationProgress))
+	dxDrawImage(0, 0, backgroundWidth, backgroundHeight, backgroundTextures[backgroundTextureIndex], 0, 0, 0, tocolor(255, 255, 255, 255 * animationProgress))
+	local currentCount = getTickCount()
+	if backgroundTransitionAnim.start then
+		backgroundTransitionAnim.progress = math.min(1, backgroundTransitionAnim.progress + ANIMATION_SPEED)
+		dxDrawImage(0, 0, backgroundWidth, backgroundHeight, backgroundTextures[backgroundTransitionAnim.textureIndex], 0, 0, 0, tocolor(255, 255, 255, 255 * backgroundTransitionAnim.progress))
+		if backgroundTransitionAnim.progress == 1 then
+			backgroundTextureIndex = backgroundTransitionAnim.textureIndex
+			backgroundTransitionAnim.progress = 0
+			backgroundTransitionAnim.start = false
+		end
+	end
+	if (currentCount - backgroundTransitionAnim.lastTick) > backgroundTransitionPeriod and not backgroundTransitionAnim.start then
+		backgroundTransitionAnim.textureIndex = math.max(1, (backgroundTextureIndex + 1) % (#backgroundTextures + 1))
+		backgroundTransitionAnim.lastTick = currentCount
+		backgroundTransitionAnim.start = true
+	end
 	dxDrawText("Drift Paradise 2.0", 3, screenHeight - 14, 3, screenHeight - 14, tocolor(255, 255, 255, 100 * animationProgress))
 	if not root:getData("dbConnected") then
 		dxDrawText("The server is currently not available.\nСервер на данный момент недоступен.",
@@ -71,6 +91,20 @@ function clearRegisterForm()
 	UI:setText(registerPanel.passwordConfirm, "")
 end
 
+function loadBackgroundTextures()
+	for i, fileName in ipairs(backgroundTexturesFiles) do
+		table.insert(backgroundTextures, DxTexture("assets/background/" .. fileName, "dxt5"))
+	end
+end
+
+function unloadBackgroundTextures()
+	for texture in pairs(backgroundTextures) do
+		if isElement(texture) then
+			destroyElement(texture)
+		end
+	end
+end
+
 function setVisible(visible)
 	visible = not not visible
 	if HIDE_CHAT then
@@ -97,11 +131,9 @@ function setVisible(visible)
 			UI:setText(loginPanel.username, fields.username)
 			UI:setText(loginPanel.password, fields.password)
 		end
-		backgroundTexture = DxTexture("assets/background.jpg", "dxt5")
+		loadBackgroundTextures()
 	else
-		if isElement(backgroundTexture) then
-			destroyElement(backgroundTexture)
-		end
+		unloadBackgroundTextures()
 		removeEventHandler("onClientRender", root, draw)
 	end
 	showCursor(visible)

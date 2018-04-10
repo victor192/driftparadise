@@ -7,7 +7,7 @@ local BETA_KEY_CHECK_ENABLED = false
 
 function Users.setup()
     DatabaseTable.create(USERS_TABLE_NAME, {
-        { name="username", type="varchar", size=25, options="UNIQUE NOT NULL" },
+		{ name="email", type="varchar", size=255, options="UNIQUE NOT NULL" },
         { name="password", type="varchar", size=255, options="NOT NULL" },
         -- Онлайн ли игрок
         { name="online", type="bool", options="DEFAULT 0" },
@@ -35,14 +35,14 @@ function Users.setup()
 end
 
 -- Функция хэширования паролей пользователей
-local function hashUserPassword(username, password)
-    return sha256(password .. tostring(username) .. tostring(string.len(username)) .. tostring(PASSWORD_SECRET))
+local function hashUserPassword(email, password)
+    return sha256(password .. tostring(email) .. tostring(string.len(email)) .. tostring(PASSWORD_SECRET))
 end
 
 -- Проверка пароля, повторного входа и т. д.
-local function verifyLogin(player, username, password, account)
+local function verifyLogin(player, email, password, account)
     if  type(player)    ~= "userdata" or
-        type(username)  ~= "string" or
+        type(email)  ~= "string" or
         type(password)  ~= "string" or
         type(account)   ~= "table"
     then
@@ -55,7 +55,7 @@ local function verifyLogin(player, username, password, account)
         return false, "already_logged_in"
     end
     -- Проверка правильности пароля
-    password = hashUserPassword(username, password)
+    password = hashUserPassword(email, password)
     if password ~= account.password then
         outputDebugString("ERROR: verifyLogin: Incorrect password")
         return false, "incorrect_password"
@@ -63,37 +63,37 @@ local function verifyLogin(player, username, password, account)
     return true
 end
 
-function Users.registerPlayer(player, username, password, callback)
-    if not isElement(player) or type(username) ~= "string" or type(password) ~= "string" then
+function Users.registerPlayer(player, email, password, callback)
+    if not isElement(player) or type(email) ~= "string" or type(password) ~= "string" then
         outputDebugString("ERROR: Users.registerPlayer: bad arguments")
         return false
     end
 
-    -- Проверка имени пользователя и пароля
-    if not checkUsername(username) or not checkPassword(password) then
-        outputDebugString("ERROR: Users.registerPlayer: bad username or password")
+    -- Проверка email адреса и пароля
+    if not checkEmail(email) or not checkPassword(password) then
+        outputDebugString("ERROR: Users.registerPlayer: bad email or password")
         return false, "bad_password"
     end
     -- Хэширование пароля
-    password = hashUserPassword(username, password)
+    password = hashUserPassword(email, password)
     -- Добавление пользователя в базу
     DatabaseTable.insert(USERS_TABLE_NAME, {
-        username = username,
+        email = email,
         password = password
     }, callback)
 
-    exports.dpLogger:log("auth", string.format("New user registered: '%s'", username))
+    exports.dpLogger:log("auth", string.format("New user registered: '%s'", email))
     return true
 end
 
-function Users.loginPlayer(player, username, password, callback)
-    if not isElement(player) or type(username) ~= "string" or type(password) ~= "string" then
+function Users.loginPlayer(player, email, password, callback)
+    if not isElement(player) or type(email) ~= "string" or type(password) ~= "string" then
         outputDebugString("ERROR: Users.registerPlayer: bad arguments")
         return false
     end
 
     -- Если игрок забанен
-    if Bans.isUserBanned(username) then
+    if Bans.isUserBanned(email) then
         outputDebugString("ERROR: Users.loginPlayer: User is banned")
         return false, "account_banned"
     end
@@ -103,20 +103,20 @@ function Users.loginPlayer(player, username, password, callback)
         return false, "already_logged_in"
     end
     -- Получение пользователя из базы
-    return DatabaseTable.select(USERS_TABLE_NAME, {}, { username = username }, function(result)
+    return DatabaseTable.select(USERS_TABLE_NAME, {}, { email = email }, function(result)
         local success, errorType = not not result, "user_not_found"
         local account
         -- Проверка пароля и т. д.
         if result then
             account = result[1]
-            success, errorType = verifyLogin(player, username, password, account)
+            success, errorType = verifyLogin(player, email, password, account)
         end
         if success then
             -- Запустить сессию
             success = Sessions.start(player)
             if success then
-                exports.dpLogger:log("auth", string.format("User '%s' logged in with nickname '%s'", username, tostring(player.name)))
-                DatabaseTable.update(USERS_TABLE_NAME, {online=SERVER_ID}, {username=username})
+                exports.dpLogger:log("auth", string.format("User '%s' logged in with nickname '%s'", email, tostring(player.name)))
+                DatabaseTable.update(USERS_TABLE_NAME, {online=SERVER_ID}, {email=email})
                 PlayerData.set(player, account)
 
                 -- Количество автомобилей игрока
@@ -136,8 +136,8 @@ function Users.loginPlayer(player, username, password, callback)
     end)
 end
 
-function Users.updateUserPassword(username, password, callback)
-    if type(username) ~= "string" or type(password) ~= "string" then
+function Users.updateUserPassword(email, password, callback)
+    if type(email) ~= "string" or type(password) ~= "string" then
         outputDebugString("ERROR: Users.updateUserPassword: bad arguments")
         return false
     end
@@ -148,10 +148,10 @@ function Users.updateUserPassword(username, password, callback)
         return false, "bad_password"
     end
     -- Хэширование пароля
-    password = hashUserPassword(username, password)
-    exports.dpLogger:log("auth", string.format("User '%s' changed password", username))
+    password = hashUserPassword(email, password)
+    exports.dpLogger:log("auth", string.format("User '%s' changed password", email))
     -- Обновление пароля
-    return DatabaseTable.update(USERS_TABLE_NAME, { password = password }, { username = username }, callback)
+    return DatabaseTable.update(USERS_TABLE_NAME, { password = password }, { email = email }, callback)
 end
 
 function Users.get(userId, fields, callback)
@@ -163,19 +163,19 @@ function Users.get(userId, fields, callback)
     return DatabaseTable.select(USERS_TABLE_NAME, fields, { _id = userId }, callback)
 end
 
-function Users.update(username, fields)
-    if type(username) ~= "string" or type(fields) ~= "table" then
+function Users.update(email, fields)
+    if type(email) ~= "string" or type(fields) ~= "table" then
         return false
     end
-    return DatabaseTable.update(USERS_TABLE_NAME, fields, {username = username}, function () end)
+    return DatabaseTable.update(USERS_TABLE_NAME, fields, {email = email}, function () end)
 end
 
-function Users.getByUsername(username, fields)
-    if type(username) ~= "string" or type(fields) ~= "table" then
+function Users.getByEmail(email, fields)
+    if type(email) ~= "string" or type(fields) ~= "table" then
         return false
     end
 
-    return DatabaseTable.select(USERS_TABLE_NAME, fields, { username = username })
+    return DatabaseTable.select(USERS_TABLE_NAME, fields, { email = email })
 end
 
 function Users.isPlayerLoggedIn(player)
@@ -193,9 +193,9 @@ function Users.logoutPlayer(player, callback)
     Sessions.stop(player)
 
     local playerName = player.name
-    local username = player:getData("username")
-    exports.dpLogger:log("auth", string.format("User '%s' has logged out (%s)", username, tostring(player.name)))
-    return DatabaseTable.update(USERS_TABLE_NAME, {online=0}, {username=username}, function(result)
+    local email = player:getData("email")
+    exports.dpLogger:log("auth", string.format("User '%s' has logged out (%s)", email, tostring(player.name)))
+    return DatabaseTable.update(USERS_TABLE_NAME, {online=0}, {email=email}, function(result)
         if type(callback) == "function" then
             callback(not not result)
         end
@@ -209,9 +209,9 @@ function Users.saveAccount(player)
     if not Sessions.isActive(player) then
         return false
     end
-    local username = player:getData("username")
+    local email = player:getData("email")
     local fields = PlayerData.get(player)
-    return DatabaseTable.update(USERS_TABLE_NAME, fields, {username = username})
+    return DatabaseTable.update(USERS_TABLE_NAME, fields, {email = email})
 end
 
 function Users.getPlayerById(id)
@@ -227,13 +227,13 @@ function Users.getPlayerById(id)
     return false
 end
 
-function Users.getPlayerByUsername(username)
-    if type(username) ~= "string" then
+function Users.getPlayerByEmail(email)
+    if type(email) ~= "string" then
         return false
     end
     for i, player in ipairs(getElementsByType("player")) do
-        local name = player:getData("username")
-        if name and name == username then
+        local name = player:getData("email")
+        if name and name == email then
             return player
         end
     end
@@ -241,7 +241,7 @@ function Users.getPlayerByUsername(username)
 end
 
 addEvent("dpCore.registerRequest", true)
-addEventHandler("dpCore.registerRequest", resourceRoot, function(username, password, betaKey)
+addEventHandler("dpCore.registerRequest", resourceRoot, function(email, password, betaKey)
     local player = client
 
     -- Проверка ключа
@@ -253,15 +253,16 @@ addEventHandler("dpCore.registerRequest", resourceRoot, function(username, passw
         end
     end
 
-    local success, errorType = Users.registerPlayer(player, username, password, function(result)
+    local success, errorType = Users.registerPlayer(player, email, password, function(result)
         result = not not result
         local errorType = ""
         if not result then
-            errorType = "username_taken"
+            errorType = "email_taken"
         else
             if BETA_KEY_CHECK_ENABLED then
                 BetaKeys.activateKey(betaKey)
             end
+			-- todo: запрос к smtp-серверу на отправку email уведомления
         end
         triggerClientEvent(player, "dpCore.registerResponse", resourceRoot, result, errorType)
         triggerEvent("dpCore.register", player, result, errorType)
@@ -273,9 +274,9 @@ addEventHandler("dpCore.registerRequest", resourceRoot, function(username, passw
 end)
 
 addEvent("dpCore.loginRequest", true)
-addEventHandler("dpCore.loginRequest", resourceRoot, function(username, password)
+addEventHandler("dpCore.loginRequest", resourceRoot, function(email, password)
     local player = client
-    local success, errorType = Users.loginPlayer(player, username, password, function(result, errorType)
+    local success, errorType = Users.loginPlayer(player, email, password, function(result, errorType)
         triggerClientEvent(player, "dpCore.loginResponse", resourceRoot, result, errorType)
         triggerEvent("dpCore.login", player, result, errorType)
     end)
@@ -286,7 +287,7 @@ addEventHandler("dpCore.loginRequest", resourceRoot, function(username, password
 end)
 
 addEvent("dpCore.logoutRequest", true)
-addEventHandler("dpCore.logoutRequest", resourceRoot, function(username, password)
+addEventHandler("dpCore.logoutRequest", resourceRoot, function(email, password)
     local player = client
     local success = Users.logoutPlayer(player, function(result)
         triggerClientEvent(player, "dpCore.logoutResponse", resourceRoot, result)
@@ -306,8 +307,8 @@ addEventHandler("dpCore.passwordChangeRequest", resourceRoot, function (password
         triggerClientEvent(player, "dpCore.passwordChangeResponse", resourceRoot, false)
         return false
     end
-    local username = player:getData("username")
-    local success = Users.updateUserPassword(username, password, function (result)
+    local email = player:getData("email")
+    local success = Users.updateUserPassword(email, password, function (result)
         triggerClientEvent(player, "dpCore.passwordChangeResponse", resourceRoot, result)
     end)
     if not success then
@@ -326,15 +327,15 @@ addEventHandler("onResourceStop", resourceRoot, function ()
 end)
 
 function logoutOfflineUsers()
-    return DatabaseTable.select(USERS_TABLE_NAME, { "username" }, { online = SERVER_ID }, function (result)
+    return DatabaseTable.select(USERS_TABLE_NAME, { "email" }, { online = SERVER_ID }, function (result)
         local count = 0
         if not result then
             return
         end
         for i, user in ipairs(result) do
-            local player = Users.getPlayerByUsername(user.username)
+            local player = Users.getPlayerByEmail(user.email)
             if not player then
-                DatabaseTable.update(USERS_TABLE_NAME, {online=0}, {username=user.username}, function()end)
+                DatabaseTable.update(USERS_TABLE_NAME, {online=0}, {email=user.email}, function()end)
                 count = count + 1
             end
         end

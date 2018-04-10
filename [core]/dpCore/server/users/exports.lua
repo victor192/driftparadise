@@ -2,25 +2,25 @@ function isPlayerLoggedIn(...)
 	return Users.isPlayerLoggedIn(...)
 end
 
-function userExists(username)
-	local users = Users.getByUsername(username, {"username"})
+function userExists(email)
+	local users = Users.getByEmail(email, {"email"})
 	return type(users) == "table" and #users > 0
 end
 
-function getUserAccount(username)
-	local users = Users.getByUsername(username, {})
+function getUserAccount(email)
+	local users = Users.getByEmail(email, {})
 	if type(users) ~= "table" or #users == 0 then
 		return false
 	end
 	return users[1]
 end
 
-function updateUserAccount(username, fields)
-	return Users.update(username, fields)
+function updateUserAccount(email, fields)
+	return Users.update(email, fields)
 end
 
-function getUserPlayer(username)
-	return Users.getPlayerByUsername(username)
+function getUserPlayer(email)
+	return Users.getPlayerByEmail(email)
 end
 
 function givePlayerMoney(player, money)

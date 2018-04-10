@@ -1,10 +1,10 @@
 -- Result event:
 -- dpCore.registerResponse
-function register(username, password, ...)
-	if type(username) ~= "string" or type(password) ~= "string" then
+function register(email, password, ...)
+	if type(email) ~= "string" or type(password) ~= "string" then
 		return false
 	end	
-	local success, errorType = checkUsername(username)
+	local success, errorType = checkEmail(email)
 	if not success then
 		return false, errorType
 	end
@@ -15,7 +15,7 @@ function register(username, password, ...)
 	if AccountsConfig.HASH_PASSWORDS_CLIENTSIDE then
 		password = sha256(password)
 	end
-	triggerServerEvent("dpCore.registerRequest", resourceRoot, username, password, ...)
+	triggerServerEvent("dpCore.registerRequest", resourceRoot, email, password, ...)
 	return true
 end
 
@@ -38,14 +38,14 @@ end
 
 -- Result event:
 -- dpCore.loginResponse
-function login(username, password)
-	if type(username) ~= "string" or type(password) ~= "string" then
+function login(email, password)
+	if type(email) ~= "string" or type(password) ~= "string" then
 		return false
 	end
 	if AccountsConfig.HASH_PASSWORDS_CLIENTSIDE then
 		password = sha256(password)
 	end
-	triggerServerEvent("dpCore.loginRequest", resourceRoot, username, password)
+	triggerServerEvent("dpCore.loginRequest", resourceRoot, email, password)
 	return true
 end
 

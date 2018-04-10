@@ -133,7 +133,9 @@ local function handleKey(key, repeatKey)
 			if currentIndex > #inputs then
 				currentIndex = 1
 			end
+			activeInput.caret.active = false
 			activeInput = inputs[currentIndex]
+			activeInput.caret.active = true
 		end
 	elseif key == "enter" then
 		triggerEvent("dpUI.inputEnter", activeInput.resourceRoot, activeInput.id)

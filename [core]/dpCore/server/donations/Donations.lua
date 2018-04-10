@@ -43,7 +43,7 @@ local function giveDonationToPlayer(player, donation)
 		exports.dpLogger:log("donations", string.format("Given donation %s to player %s (%s)", 
 			tostring(donation._id),
 			tostring(player.name),
-			tostring(player:getData("username"))))
+			tostring(player:getData("email"))))
 	end)
 end
 

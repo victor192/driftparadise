@@ -10,7 +10,7 @@ local allowedBanTypes = {
 
 function Bans.setup() 
 	DatabaseTable.create(BANS_TABLE_NAME, {
-		{ name="username", 		type="varchar", size=25, options="" },
+		{ name="email", 		type="varchar", size=25, options="" },
 		{ name="serial", 		type="varchar", size=64, options="" },
 		-- Тип бана: "ban" или "mute"
 		{ name="banType",		type="varchar",	size=64, options="NOT NULL"},
@@ -54,11 +54,11 @@ local function addBan(banInfo)
 
 	local banData = { reason = banInfo.reason }
 
-	if banInfo.username then
-		if not bansTable[banInfo.banType].username then
-			bansTable[banInfo.banType].username = {}
+	if banInfo.email then
+		if not bansTable[banInfo.banType].email then
+			bansTable[banInfo.banType].email = {}
 		end
-		bansTable[banInfo.banType].username[string.lower(banInfo.username)] = banData
+		bansTable[banInfo.banType].email[string.lower(banInfo.email)] = banData
 	end
 	if banInfo.serial then
 		if not bansTable[banInfo.banType].serial then
@@ -91,12 +91,12 @@ function Bans.isSerialBanned(serial)
 	return false
 end
 
-function Bans.isUserBanned(username)
-	if type(username) ~= "string" then
+function Bans.isUserBanned(email)
+	if type(email) ~= "string" then
 		return false
 	end
-	username = string.lower(username)
-	local banData = getBan("ban", "username", username)
+	email = string.lower(email)
+	local banData = getBan("ban", "email", email)
 	if banData then
 		return true, banData.reason
 	end
@@ -110,8 +110,8 @@ function Bans.isPlayerMuted(player)
 	if getBan("mute", "serial", player.serial) then
 		return true
 	end	
-	local username = player:getData("username")
-	if username and getBan("mute", "username", username) then
+	local email = player:getData("email")
+	if email and getBan("mute", "email", email) then
 		return true
 	end
 	return false
@@ -126,9 +126,9 @@ function Bans.banPlayer(player, duration, reason)
 		outputDebugString("Bans: Failed to ban player. Invalid duration '" .. tostring(duration) .. "'")
 		return false
 	end	
-	local username = player:getData("username")
+	local email = player:getData("email")
 	return DatabaseTable.insert(BANS_TABLE_NAME, { 
-		username 	= username, 
+		email 	= email, 
 		nickname 	= player.name,
 		serial 		= player.serial,
 		reason 		= reason,
@@ -160,9 +160,9 @@ function Bans.mutePlayer(player, duration)
 		outputDebugString("Bans: Failed to mute player. Invalid duration '" .. tostring(duration) .. "'")
 		return false
 	end	
-	local username = player:getData("username")
+	local email = player:getData("email")
 	return DatabaseTable.insert(BANS_TABLE_NAME, { 
-		username 	= username, 
+		email 	= email, 
 		nickname 	= player.name,
 		serial 		= player.serial,
 		reason 		= reason,
@@ -181,12 +181,12 @@ function Bans.unmutePlayer(player)
 		outputDebugString("Bans: Failed to unmute player. Bad player element")
 		return false
 	end
-	local username = player:getData("username")
-	if type(username) ~= "string" then
+	local email = player:getData("email")
+	if type(email) ~= "string" then
 		outputDebugString("Bans: Failed to unmute player. Player is not logged in")
 		return false
 	end
-	return DatabaseTable.select(BANS_TABLE_NAME, {"_id"}, { username = username, banType="mute" }, function (result)
+	return DatabaseTable.select(BANS_TABLE_NAME, {"_id"}, { email = email, banType="mute" }, function (result)
 		if not result then 
 			return
 		end
@@ -219,7 +219,7 @@ function Bans.update()
 	end)
 end
 
-addEventHandler("onPlayerConnect", root, function (nickname, ip, username, serial)
+addEventHandler("onPlayerConnect", root, function (nickname, ip, playerUsername, serial)
 	local isBanned, banReason = Bans.isSerialBanned(serial)
 	if isBanned then
 		local banMessage = ""

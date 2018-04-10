@@ -197,7 +197,7 @@ function VehicleSpawn.spawn(vehicleId, position, rotation)
 		return false
 	end
 
-	local user = Users.get(vehicleInfo.owner_id, { "username" })
+	local user = Users.get(vehicleInfo.owner_id, { "email" })
 	if type(user) ~= "table" or #user == 0 then
 		outputDebugString("VehicleSpawn.spawn: Vehicle owner user does not exist. owner_id: " .. tostring(vehicleInfo.owner_id))
 		return false
@@ -214,7 +214,7 @@ function VehicleSpawn.spawn(vehicleId, position, rotation)
 	for i, name in ipairs(dataFields) do
 		vehicle:setData(name, vehicleInfo[name])
 	end
-	vehicle:setData("owner_username", user.username)
+	vehicle:setData("owner_email", user.email)
 	vehicle.id = "vehicle_" .. tostring(vehicleInfo._id)
 
 	addUserSpawnedVehicle(vehicleInfo.owner_id, vehicle)
